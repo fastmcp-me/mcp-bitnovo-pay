@@ -1,6 +1,6 @@
 {
   "name": "@bitnovopay/mcp-bitnovo-pay",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "description": "MCP server for Bitnovo Pay integration with AI agents",
   "type": "module",
   "main": "dist/index.js",
