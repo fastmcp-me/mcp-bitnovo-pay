@@ -55,6 +55,8 @@ export interface BitnovoCurrencyResponse {
     max_amount: number | null;
     image: string;
     blockchain: string;
+    original_symbol: string;
+    original_blockchain: string;
 }
 export declare class BitnovoApiError extends Error implements ApiError {
     readonly statusCode: number;

@@ -373,6 +373,7 @@ export class CurrencyService {
 
   /**
    * Get currency display information
+   * Uses original_symbol and original_blockchain for user-friendly display
    */
   getCurrencyDisplayInfo(currency: Currency): {
     displayName: string;
@@ -386,8 +387,9 @@ export class CurrencyService {
       features.push('Requires memo/tag');
     }
 
-    if (currency.blockchain !== currency.symbol) {
-      features.push(`${currency.blockchain} network`);
+    // Use original_blockchain for user-friendly display
+    if (currency.original_blockchain) {
+      features.push(`${currency.original_blockchain}`);
     }
 
     const maxAmountText = currency.maxAmount
@@ -395,8 +397,8 @@ export class CurrencyService {
       : 'No limit';
 
     return {
-      displayName: `${currency.name} (${currency.symbol})`,
-      shortName: currency.symbol,
+      displayName: `${currency.name} (${currency.original_symbol})`, // Use original_symbol for display
+      shortName: currency.original_symbol, // Use original_symbol for display
       amountRange: `€${currency.minAmount} - ${maxAmountText}`,
       features,
     };

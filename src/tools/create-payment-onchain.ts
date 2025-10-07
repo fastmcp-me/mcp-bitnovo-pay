@@ -16,26 +16,32 @@ const logger = getLogger();
 export const createPaymentOnchainTool: Tool = {
   name: 'create_payment_onchain',
   description:
-    'Generate specific cryptocurrency address and QR codes. USE ONLY WHEN: User explicitly mentions a cryptocurrency name (Bitcoin, BTC, Ethereum, ETH, USDC, etc.). Customer MUST pay with that exact crypto. RESULT: Returns crypto address, payment URI, QR codes, and EXPIRATION TIME. IMPORTANT: Payment timer starts IMMEDIATELY when crypto is selected - always inform user of expiration deadline from expires_at field. EXAMPLES: "Bitcoin payment", "Generate ETH address", "I need USDC QR", "BTC for 50 euros", "Create Ethereum payment". DO NOT USE for generic payments without specified cryptocurrency - use create_payment_link instead. Note: Exchange rate is not included in response for privacy and accuracy reasons.',
+    '🚨 CRITICAL RULE #1 - EXPIRATION: YOU MUST tell user payment expires in EXACTLY "expires_in_minutes" MINUTES. Convert "expires_at" (UTC) to user\'s LOCAL TIME ZONE and display in their language. Format: "expires in X minutes (on [date] at [time] [user\'s timezone])".\n\n' +
+    '💰 CRITICAL RULE #2 - AMOUNT: YOU MUST show "expected_input_amount" with FULL PRECISION (all decimals). Example: "0.43515861 SOL" not "0.44 SOL". This is the EXACT amount customer must send.\n\n' +
+    '🪙 RULE #3 - DISPLAY: Show users ONLY "original_symbol" (BTC, USDC, SOL) and "original_blockchain" (Bitcoin Network, Solana Test Network). NEVER mention internal codes.\n\n' +
+    '🔗 CRITICAL RULE #4 - PAYMENT LINK: ALWAYS display "web_url" as "Enlace de pago:" or "Payment Link:" in user\'s language. This is the web gateway URL where customers can view and complete the payment.\n\n' +
+    '🎯 WHEN TO USE: Only when user explicitly mentions a cryptocurrency (Bitcoin, BTC, Ethereum, ETH, USDC, Solana, SOL, etc.). Customer MUST pay with that exact crypto.\n\n' +
+    '🌐 NETWORK SELECTION: If crypto has MULTIPLE networks (check network_groups), call list_currencies_catalog first, ASK USER which network. Pass cryptocurrency as "SYMBOL on NETWORK".\n\n' +
+    'EXAMPLES: cryptocurrency="BTC", cryptocurrency="USDC on Ethereum Network", cryptocurrency="SOL on Solana Test Network".',
   inputSchema: {
     type: 'object',
     properties: {
-      amount_eur: {
+      amount: {
         type: 'number',
         minimum: 0.01,
-        description: 'Payment amount in EUR (must be positive)',
-      },
-      input_currency: {
-        type: 'string',
-        pattern: '^[A-Z0-9_]+$',
         description:
-          'Cryptocurrency symbol (REQUIRED). Options: BTC_TEST, ETH_TEST, USDC_ETH_TEST, etc. Use list_currencies_catalog to see all available. The customer MUST pay in this specific cryptocurrency.',
+          'Payment amount in the specified fiat currency (must be positive). This amount will be converted to cryptocurrency at current rates.',
+      },
+      cryptocurrency: {
+        type: 'string',
+        description:
+          'Cryptocurrency with network (REQUIRED). Format: "SYMBOL on NETWORK" or just "SYMBOL" if only one network. Examples: "USDC on Ethereum Network", "USDC on Solana Test Network", "BTC" (if only one Bitcoin network exists). Use list_currencies_catalog to see available options. The customer MUST pay in this specific cryptocurrency.',
       },
       fiat: {
         type: 'string',
         pattern: '^[A-Z]{3}$',
         description:
-          'ISO 4217 currency code for the fiat amount (supports EUR, USD, and other major currencies)',
+          'ISO 4217 currency code (EUR, USD, GBP, etc.). IMPORTANT: Use the EXACT currency the user specified. If user says "100 euros" use EUR. If user says "100 dollars" use USD. Default: EUR',
         default: 'EUR',
       },
       notes: {
@@ -50,7 +56,7 @@ export const createPaymentOnchainTool: Tool = {
           'If true, includes QR codes in the response (RECOMMENDED: always true for immediate use). If false, generate later with generate_payment_qr.',
       },
     },
-    required: ['amount_eur', 'input_currency'],
+    required: ['amount', 'cryptocurrency'],
     additionalProperties: false,
   },
 };
@@ -67,10 +73,15 @@ export class CreatePaymentOnchainHandler {
     payment_uri?: string;
     expected_input_amount?: number;
     rate?: number;
-    input_currency?: string;
+    input_currency?: string; // Internal symbol - DO NOT display to users
+    original_symbol?: string; // Display this to users
+    original_blockchain?: string; // Display this to users
     tag_memo?: string;
     qr_address?: QrCodeData;
     qr_payment_uri?: QrCodeData;
+    expires_at?: string;
+    expires_in_minutes?: number;
+    expiration_warning?: string;
   }> {
     const startTime = Date.now();
 
@@ -80,29 +91,117 @@ export class CreatePaymentOnchainHandler {
     });
 
     try {
+      // Lookup internal currency code from user-friendly cryptocurrency string
+      const requestArgs = args as {
+        cryptocurrency: string;
+        include_qr?: boolean;
+      };
+      const cryptoString = requestArgs.cryptocurrency;
+
+      // Get all currencies to find the matching code
+      const allCurrencies = await this.currencyService.getCurrenciesCatalog({});
+      let matchedCurrency = null;
+
+      for (const currency of allCurrencies.currencies) {
+        const originalSymbol = currency.original_symbol as string;
+        const originalBlockchain = currency.original_blockchain as string;
+        const displayName = `${originalSymbol} on ${originalBlockchain}`;
+        const displayNameShort = originalSymbol;
+
+        // Match either "USDC on Ethereum Network" or just "USDC" (if unique)
+        if (
+          cryptoString === displayName ||
+          cryptoString === displayNameShort ||
+          cryptoString.toLowerCase() === displayName.toLowerCase() ||
+          cryptoString.toLowerCase() === displayNameShort.toLowerCase()
+        ) {
+          matchedCurrency = currency;
+          break;
+        }
+      }
+
+      if (!matchedCurrency) {
+        throw new Error(
+          `Cryptocurrency "${cryptoString}" not found. Use list_currencies_catalog to see available options.`
+        );
+      }
+
+      // Create modified args with internal currency code for API
+      // Map MCP parameter names to internal API names
+      const argsObj = args as Record<string, unknown>;
+      const { amount, ...restArgs } = argsObj;
+      const apiArgs = {
+        ...restArgs,
+        amount_eur: amount, // Map 'amount' to internal 'amount_eur'
+        input_currency: matchedCurrency.symbol, // Internal API code
+      };
+
       // Create payment through service
-      const payment = await this.paymentService.createOnchainPayment(args);
+      const payment = await this.paymentService.createOnchainPayment(apiArgs);
+
+      // Get currency information for blockchain and image URL
+      const currency = payment.currency
+        ? await this.currencyService.findCurrency(payment.currency)
+        : null;
+
+      // Handle expiration - use backend value or default to 15 minutes
+      let effectiveExpiresAt: Date;
+      if (payment.expiresAt) {
+        effectiveExpiresAt = payment.expiresAt;
+      } else {
+        // Backend didn't provide expiration - use 15 minute default
+        effectiveExpiresAt = new Date(Date.now() + 15 * 60 * 1000);
+        logger.warn(
+          'Backend did not provide expiration date, using 15min default',
+          {
+            paymentId: payment.identifier,
+            defaultExpiration: effectiveExpiresAt.toISOString(),
+            operation: 'create_payment_onchain_default_expiration',
+          }
+        );
+      }
+
+      // Calculate expiration time remaining (always present now, with 15min default)
+      const now = new Date();
+      const diffMs = effectiveExpiresAt.getTime() - now.getTime();
+      const expiresInMinutes = Math.max(0, Math.floor(diffMs / 60000)); // Convert to minutes
+
+      // Create formatted warning that LLM MUST display
+      const expiresAtFormatted =
+        effectiveExpiresAt.toISOString().replace('T', ' ').substring(0, 19) +
+        ' UTC';
+
+      // Expiration warning with key data - LLM will format in user's language
+      const expirationWarning = `Payment expires in ${expiresInMinutes} minutes at ${expiresAtFormatted}`;
+
+      // Extract user-facing symbols with explicit types to satisfy ESLint
+      const originalSymbol: string | undefined = currency
+        ? (currency.original_symbol as string)
+        : undefined;
+      const originalBlockchain: string | undefined = currency
+        ? (currency.original_blockchain as string)
+        : undefined;
 
       const response: CreatePaymentOnchainOutput = {
         identifier: payment.identifier,
+        web_url: payment.webUrl, // Web URL if provided by backend
         address: payment.address,
         payment_uri: payment.paymentUri,
         expected_input_amount: payment.expectedInputAmount,
-        input_currency: payment.currency!,
+        input_currency: payment.currency!, // Internal symbol for API calls
+        original_symbol: originalSymbol, // User-facing symbol (e.g., BTC, USDC)
+        original_blockchain: originalBlockchain, // User-facing blockchain name (e.g., Bitcoin Network)
+        blockchain: currency?.blockchain, // Internal blockchain identifier
         // Extract tag/memo from payment URI or address for currencies that require it
         tag_memo: this.extractTagMemo(payment.paymentUri, payment.currency),
-        expires_at: payment.expiresAt?.toISOString(),
+        expires_at: effectiveExpiresAt.toISOString(), // Always present (backend or 15min default)
+        expires_in_minutes: expiresInMinutes,
+        expiration_warning: expirationWarning,
       };
 
       // Generate QR codes if requested
-      const inputArgs = args as { include_qr?: boolean };
-      if (inputArgs.include_qr === true) {
+      if (requestArgs.include_qr === true) {
         const cache = getQrCache();
-
-        // Get currency information for image URL
-        const currency = payment.currency
-          ? await this.currencyService.findCurrency(payment.currency)
-          : null;
 
         const qrOptions: ImageProcessingOptions = {
           size: 512,
@@ -258,34 +357,6 @@ export class CreatePaymentOnchainHandler {
       });
       return undefined;
     }
-  }
-
-  /**
-   * Validate that the tool response matches the expected schema
-   */
-  private validateResponse(response: unknown): boolean {
-    // Basic validation that required fields are present
-    if (!response || typeof response !== 'object') {
-      return false;
-    }
-
-    const resp = response as Record<string, unknown>;
-    if (!resp.identifier || typeof resp.identifier !== 'string') {
-      return false;
-    }
-
-    // Validate UUID format for identifier
-    const uuidRegex =
-      /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-    if (!uuidRegex.test(resp.identifier)) {
-      logger.warn('Invalid identifier format in response', {
-        identifier: resp.identifier,
-        operation: 'validate_response',
-      });
-      return false;
-    }
-
-    return true;
   }
 }
 

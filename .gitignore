@@ -77,3 +77,4 @@ test*.js
 TPV- FRONT local.postman_collection.json
 *.ipynb
 *.tsbuildinfo
+docs/gitbook-integration-mcp.md

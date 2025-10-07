@@ -14,18 +14,19 @@ export declare class CreatePaymentOnchainHandler {
         expected_input_amount?: number;
         rate?: number;
         input_currency?: string;
+        original_symbol?: string;
+        original_blockchain?: string;
         tag_memo?: string;
         qr_address?: QrCodeData;
         qr_payment_uri?: QrCodeData;
+        expires_at?: string;
+        expires_in_minutes?: number;
+        expiration_warning?: string;
     }>;
     /**
      * Extract tag/memo from payment URI for currencies that require it
      */
     private extractTagMemo;
-    /**
-     * Validate that the tool response matches the expected schema
-     */
-    private validateResponse;
 }
 export declare function createPaymentOnchainHandler(paymentService: PaymentService, currencyService: CurrencyService): CreatePaymentOnchainHandler;
 //# sourceMappingURL=create-payment-onchain.d.ts.map

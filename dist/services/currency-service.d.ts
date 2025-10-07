@@ -83,6 +83,7 @@ export declare class CurrencyService {
     private normalizeAmount;
     /**
      * Get currency display information
+     * Uses original_symbol and original_blockchain for user-friendly display
      */
     getCurrencyDisplayInfo(currency: Currency): {
         displayName: string;

@@ -15,18 +15,6 @@ export declare class CreatePaymentLinkHandler {
      * Additional validation for input URLs
      */
     private validateInputUrls;
-    /**
-     * Validate that the tool response matches the expected schema
-     */
-    private validateResponse;
-    /**
-     * Extract domain from URL for logging purposes
-     */
-    private extractDomain;
-    /**
-     * Generate a tracking reference for the payment
-     */
-    private generateTrackingReference;
 }
 export declare function createPaymentLinkHandler(paymentService: PaymentService): CreatePaymentLinkHandler;
 //# sourceMappingURL=create-payment-link.d.ts.map

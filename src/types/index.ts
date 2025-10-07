@@ -32,12 +32,14 @@ export interface Payment {
 }
 
 export interface Currency {
-  symbol: string;
+  symbol: string; // Internal symbol for API calls (e.g., BTC_TEST, USDC_ETH_TEST5)
   name: string;
   minAmount: number;
   maxAmount: number | null;
   network_image: string;
-  blockchain: string;
+  blockchain: string; // Internal blockchain identifier
+  original_symbol: string; // User-facing symbol (e.g., BTC, USDC)
+  original_blockchain: string; // User-facing blockchain name (e.g., Bitcoin Network, Ethereum Network)
   requiresMemo: boolean;
   decimals: number;
   isActive: boolean;
@@ -88,13 +90,26 @@ export interface CreatePaymentOnchainInput {
 
 export interface CreatePaymentOnchainOutput {
   identifier: string;
+  web_url?: string; // Web URL for payment gateway (if provided by backend)
   address?: string;
   payment_uri?: string;
   expected_input_amount?: number;
   rate?: number;
-  input_currency: string;
+  input_currency: string; // Internal symbol - DO NOT display to users
+  original_symbol?: string; // Display this to users (e.g., BTC, USDC)
+  original_blockchain?: string; // Display this to users (e.g., Bitcoin Network)
+  blockchain?: string; // Internal blockchain identifier - DO NOT display to users
   tag_memo?: string;
   expires_at?: string;
+  expires_in_minutes?: number;
+  /**
+   * 🚨 CRITICAL - MUST DISPLAY TO USER 🚨
+   * Pre-formatted bilingual expiration warning that MUST be shown to the user.
+   * This field contains the exact time remaining and expiration date.
+   * LLMs MUST copy this text verbatim into their response to users.
+   * Omitting this warning will cause payment failures.
+   */
+  expiration_warning?: string;
   qr_address?: QrCodeData;
   qr_payment_uri?: QrCodeData;
 }
@@ -136,12 +151,14 @@ export interface ListCurrenciesCatalogInput {
 
 export interface ListCurrenciesCatalogOutput {
   currencies: Array<{
-    symbol: string;
+    symbol: string; // Internal symbol for API calls - DO NOT display to users
     name: string;
     min_amount: number;
     max_amount: number | null;
     image: string;
-    blockchain: string;
+    blockchain: string; // Internal blockchain identifier - DO NOT display to users
+    original_symbol: string; // Display this to users (e.g., BTC, USDC)
+    original_blockchain: string; // Display this to users (e.g., Bitcoin Network)
     requires_memo: boolean;
     decimals: number;
     current_rate?: number;
@@ -238,12 +255,14 @@ export interface BitnovoStatusResponse {
 }
 
 export interface BitnovoCurrencyResponse {
-  symbol: string;
+  symbol: string; // Internal symbol (e.g., BTC_TEST, USDC_ETH_TEST5)
   name: string;
   min_amount: number;
   max_amount: number | null;
-  network_image: string;
-  blockchain: string;
+  image: string;
+  blockchain: string; // Internal blockchain identifier
+  original_symbol: string; // User-facing symbol (e.g., BTC, USDC)
+  original_blockchain: string; // User-facing blockchain name
   // Note: requires_memo and decimals might need to be derived or mapped
 }
 

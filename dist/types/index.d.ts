@@ -24,6 +24,8 @@ export interface Currency {
     maxAmount: number | null;
     network_image: string;
     blockchain: string;
+    original_symbol: string;
+    original_blockchain: string;
     requiresMemo: boolean;
     decimals: number;
     isActive: boolean;
@@ -69,13 +71,26 @@ export interface CreatePaymentOnchainInput {
 }
 export interface CreatePaymentOnchainOutput {
     identifier: string;
+    web_url?: string;
     address?: string;
     payment_uri?: string;
     expected_input_amount?: number;
     rate?: number;
     input_currency: string;
+    original_symbol?: string;
+    original_blockchain?: string;
+    blockchain?: string;
     tag_memo?: string;
     expires_at?: string;
+    expires_in_minutes?: number;
+    /**
+     * 🚨 CRITICAL - MUST DISPLAY TO USER 🚨
+     * Pre-formatted bilingual expiration warning that MUST be shown to the user.
+     * This field contains the exact time remaining and expiration date.
+     * LLMs MUST copy this text verbatim into their response to users.
+     * Omitting this warning will cause payment failures.
+     */
+    expiration_warning?: string;
     qr_address?: QrCodeData;
     qr_payment_uri?: QrCodeData;
 }
@@ -117,6 +132,8 @@ export interface ListCurrenciesCatalogOutput {
         max_amount: number | null;
         image: string;
         blockchain: string;
+        original_symbol: string;
+        original_blockchain: string;
         requires_memo: boolean;
         decimals: number;
         current_rate?: number;
@@ -203,8 +220,10 @@ export interface BitnovoCurrencyResponse {
     name: string;
     min_amount: number;
     max_amount: number | null;
-    network_image: string;
+    image: string;
     blockchain: string;
+    original_symbol: string;
+    original_blockchain: string;
 }
 export interface BitnovoCurrenciesResponse {
     currencies: BitnovoCurrencyResponse[];

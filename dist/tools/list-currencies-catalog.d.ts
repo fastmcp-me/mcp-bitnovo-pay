@@ -2,12 +2,12 @@ import { Tool } from '@modelcontextprotocol/sdk/types.js';
 import type { CurrencyService } from '../services/currency-service.js';
 export declare const listCurrenciesCatalogTool: Tool;
 export interface CurrencyInfo {
-    symbol: string;
     name: string;
     min_amount: number;
     max_amount: number | null;
     image: string;
-    blockchain: string;
+    original_symbol: string;
+    original_blockchain: string;
     requires_memo: boolean;
     decimals: number;
     is_active: boolean;
@@ -22,6 +22,7 @@ export declare class ListCurrenciesCatalogHandler {
         filtered_count: number;
         filter_applied: boolean;
         filter_amount?: number;
+        network_groups?: Record<string, string[]>;
         cache_info: {
             cached: boolean;
             age: number;
@@ -30,8 +31,14 @@ export declare class ListCurrenciesCatalogHandler {
     }>;
     /**
      * Get feature list for a currency
+     * Uses original_symbol and original_blockchain for user-friendly features
      */
     private getCurrencyFeatures;
+    /**
+     * Group currencies by base symbol to identify multi-network variants
+     * Example: USDC_ETH, USDC_TRON, USDC_POLYGON -> { "USDC": ["USDC_ETH", "USDC_TRON", "USDC_POLYGON"] }
+     */
+    private groupCurrenciesByNetwork;
     /**
      * Check if currency is a stablecoin
      */
@@ -40,22 +47,6 @@ export declare class ListCurrenciesCatalogHandler {
      * Check if currency is in the popular list
      */
     private isPopularCurrency;
-    /**
-     * Get currency recommendation based on amount and user preferences
-     */
-    private getCurrencyRecommendations;
-    /**
-     * Generate usage statistics for currencies
-     */
-    private getCurrencyStats;
-    /**
-     * Validate that the tool response matches the expected schema
-     */
-    private validateResponse;
-    /**
-     * Validate individual currency info object
-     */
-    private validateCurrencyInfo;
 }
 export declare function listCurrenciesCatalogHandler(currencyService: CurrencyService): ListCurrenciesCatalogHandler;
 //# sourceMappingURL=list-currencies-catalog.d.ts.map

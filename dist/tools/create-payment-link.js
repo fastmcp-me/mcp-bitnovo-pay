@@ -167,62 +167,6 @@ export class CreatePaymentLinkHandler {
             }
         }
     }
-    /**
-     * Validate that the tool response matches the expected schema
-     */
-    validateResponse(response) {
-        // Basic validation that required fields are present
-        if (!response || typeof response !== 'object') {
-            return false;
-        }
-        if (!response.identifier || typeof response.identifier !== 'string') {
-            return false;
-        }
-        if (!response.web_url || typeof response.web_url !== 'string') {
-            return false;
-        }
-        // Validate UUID format for identifier
-        const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-        if (!uuidRegex.test(response.identifier)) {
-            logger.warn('Invalid identifier format in response', {
-                identifier: response.identifier,
-                operation: 'validate_response',
-            });
-            return false;
-        }
-        // Validate web URL format
-        try {
-            new URL(response.web_url);
-        }
-        catch {
-            logger.warn('Invalid web_url format in response', {
-                webUrl: response.web_url,
-                operation: 'validate_response',
-            });
-            return false;
-        }
-        return true;
-    }
-    /**
-     * Extract domain from URL for logging purposes
-     */
-    extractDomain(url) {
-        try {
-            const urlObj = new URL(url);
-            return urlObj.hostname;
-        }
-        catch {
-            return 'invalid-url';
-        }
-    }
-    /**
-     * Generate a tracking reference for the payment
-     */
-    generateTrackingReference() {
-        const timestamp = Date.now().toString(36);
-        const random = Math.random().toString(36).substring(2, 8);
-        return `redirect_${timestamp}_${random}`;
-    }
 }
 // Factory function for creating the handler
 export function createPaymentLinkHandler(paymentService) {

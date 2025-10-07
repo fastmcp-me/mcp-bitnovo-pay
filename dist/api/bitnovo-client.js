@@ -190,6 +190,7 @@ export class BitnovoApiClient {
                 paymentType: 'onchain',
                 address: orderData.address,
                 paymentUri: orderData.payment_uri,
+                webUrl: orderData.web_url,
                 expectedInputAmount: orderData.expected_input_amount,
                 rate: orderData.rate,
                 createdAt: orderData.created_at
@@ -479,17 +480,23 @@ export class BitnovoApiClient {
             if (!Array.isArray(response.data)) {
                 throw new BitnovoApiError('Invalid currency data format', response.status, 'GET_CURRENCIES_FAILED', response.data);
             }
-            return response.data.map(currency => ({
-                symbol: currency.symbol,
-                name: currency.name,
-                minAmount: currency.min_amount,
-                maxAmount: currency.max_amount,
-                network_image: currency.image,
-                blockchain: currency.blockchain,
-                requiresMemo: ['XRP', 'XLM', 'ALGO'].includes(currency.symbol),
-                decimals: this.getDefaultDecimals(currency.symbol),
-                isActive: true, // Assume all returned currencies are active
-            }));
+            return response.data.map(currency => {
+                // Extract base symbol for currencies with network suffix (e.g., USDC_ETH -> USDC)
+                const baseSymbol = currency.symbol.split('_')[0];
+                return {
+                    symbol: currency.symbol, // Internal symbol for API calls (e.g., BTC_TEST, USDC_ETH_TEST5)
+                    name: currency.name,
+                    minAmount: currency.min_amount,
+                    maxAmount: currency.max_amount,
+                    network_image: currency.image,
+                    blockchain: currency.blockchain, // Internal blockchain identifier
+                    original_symbol: currency.original_symbol, // User-facing symbol from API
+                    original_blockchain: currency.original_blockchain, // User-facing blockchain name from API
+                    requiresMemo: ['XRP', 'XLM', 'ALGO'].includes(baseSymbol || currency.symbol),
+                    decimals: this.getDefaultDecimals(baseSymbol || currency.symbol),
+                    isActive: true, // Assume all returned currencies are active
+                };
+            });
         }
         catch (error) {
             if (error instanceof BitnovoApiError) {
