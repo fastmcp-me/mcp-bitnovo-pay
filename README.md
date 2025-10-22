@@ -102,6 +102,63 @@ Ask your AI assistant: *"Create a payment for 10 euros"*
 
 ---
 
+## ☁️ Cloud Deployment (NEW in v1.2.0)
+
+MCP Bitnovo Pay now supports remote deployment on cloud platforms with HTTP transport mode. This enables AI platforms like claude.ai to connect to your MCP server remotely.
+
+### Deploy to Railway (Recommended)
+
+[![Deploy on Railway](https://railway.app/button.svg)](https://railway.app/template)
+
+**Quick Setup:**
+
+1. Click "Deploy to Railway" or create a new project
+2. Set environment variables:
+   - `BITNOVO_DEVICE_ID` - Your Bitnovo device ID
+   - `BITNOVO_BASE_URL` - `https://pos.bitnovo.com`
+3. Deploy (Railway auto-detects Dockerfile)
+4. Get your public URL: `https://your-app.up.railway.app`
+
+**Connect to claude.ai:**
+- Add server in Settings → Model Context Protocol
+- Server URL: `https://your-app.up.railway.app/mcp`
+
+📖 **Full Guide**: See [RAILWAY.md](RAILWAY.md) for detailed deployment instructions, troubleshooting, and configuration.
+
+### Deploy to Docker
+
+```bash
+# Build the image
+docker build -t mcp-bitnovo-pay .
+
+# Run with environment variables
+docker run -d \
+  -p 3000:3000 \
+  -e PORT=3000 \
+  -e BITNOVO_DEVICE_ID=your_device_id \
+  -e BITNOVO_BASE_URL=https://pos.bitnovo.com \
+  mcp-bitnovo-pay
+```
+
+### Deploy to Other Platforms
+
+The server works on any platform that supports Node.js and Docker:
+- **Heroku**: Push Dockerfile with environment variables
+- **Fly.io**: Deploy with `fly.toml` configuration
+- **Google Cloud Run**: Deploy Docker container
+- **AWS ECS/Fargate**: Deploy with task definition
+
+**Required Environment Variables:**
+- `PORT` - HTTP port (auto-set by most platforms)
+- `BITNOVO_DEVICE_ID` - Your Bitnovo device ID
+- `BITNOVO_BASE_URL` - Bitnovo API URL
+
+**Transport Mode Detection:**
+- If `PORT` env var is set → HTTP mode (remote connections)
+- If no `PORT` → stdio mode (local connections)
+
+---
+
 ## 📦 Installation Options
 
 ### Option A: Using npx (Recommended)

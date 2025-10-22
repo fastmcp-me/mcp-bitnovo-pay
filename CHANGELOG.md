@@ -5,6 +5,46 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.2.0] - 2025-10-22
+
+### Added
+- **HTTP Transport Mode**: Support for remote MCP connections via StreamableHTTP
+  - Enables deployment on cloud platforms (Railway, Heroku, Fly.io, etc.)
+  - Compatible with claude.ai web interface
+  - Auto-detects transport mode based on PORT environment variable
+  - `/health` endpoint for monitoring and health checks
+  - Server info endpoint at `/` with version and documentation
+- **OAuth 2.0 Discovery Endpoints**: Full OAuth metadata support
+  - `/.well-known/oauth-authorization-server/mcp` for authorization server metadata
+  - `/.well-known/oauth-protected-resource/mcp` for resource server metadata
+  - Enables automatic discovery by AI platforms
+- **Docker Support**: Production-ready Dockerfile
+  - Multi-stage build process with optimized caching
+  - Automatic TypeScript compilation during build
+  - Production dependencies only in final image
+  - Configurable via environment variables
+- **Railway Deployment Guide**: Complete documentation in RAILWAY.md
+  - Step-by-step deployment instructions
+  - Environment variable reference
+  - Troubleshooting guide
+  - Testing procedures
+
+### Changed
+- **MCP SDK Updated**: Upgraded from v1.0.0 to v1.20.0
+  - Latest StreamableHTTP transport features
+  - Improved stability and performance
+  - Enhanced protocol compliance
+- **Dual Transport Support**: Server now runs in stdio or HTTP mode
+  - stdio: Local connections (Claude Desktop, CLI)
+  - HTTP: Remote connections (claude.ai, cloud platforms)
+  - Automatic mode detection based on environment
+
+### Improved
+- Better error messages in HTTP mode with structured JSON responses
+- Graceful shutdown handling for both transport modes
+- Enhanced logging for HTTP requests and responses
+- Production-ready deployment configuration
+
 ## [1.0.0] - 2025-01-30
 
 ### Added

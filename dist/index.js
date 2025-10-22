@@ -2,7 +2,9 @@
 // MCP Bitnovo Pay Integration Server Entry Point
 import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
+import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
 import { CallToolRequestSchema, ListToolsRequestSchema, } from '@modelcontextprotocol/sdk/types.js';
+import express from 'express';
 // Configuration and utilities
 import { getConfig, getMaskedConfig } from './config/index.js';
 import { getLogger } from './utils/logger.js';
@@ -56,7 +58,7 @@ class MCPBitnovoServer {
         // Initialize MCP Server
         this.server = new Server({
             name: 'mcp-bitnovo-pay',
-            version: '1.1.0',
+            version: '1.2.0',
         }, {
             capabilities: {
                 tools: {},
@@ -296,6 +298,109 @@ class MCPBitnovoServer {
             process.exit(1);
         }
     }
+    /**
+     * Start MCP server in HTTP mode for remote connections (claude.ai, Railway, etc.)
+     */
+    async startHttpMode(port) {
+        logger.info('Initializing HTTP transport for remote MCP connections', {
+            port,
+            operation: 'http_transport_init',
+        });
+        // Create Express app for HTTP transport
+        const app = express();
+        // Add JSON middleware
+        app.use(express.json());
+        // Create StreamableHTTP transport (stateless for serverless/Railway)
+        const transport = new StreamableHTTPServerTransport({
+            sessionIdGenerator: undefined, // Stateless mode
+        });
+        // Connect MCP server to HTTP transport
+        await this.server.connect(transport);
+        // MCP endpoint for all requests
+        app.post('/mcp', async (req, res) => {
+            logger.debug('Received MCP request via HTTP', {
+                operation: 'http_request_received',
+                method: req.method,
+                path: req.path,
+            });
+            try {
+                await transport.handleRequest(req, res, req.body);
+            }
+            catch (error) {
+                logger.error('Error handling MCP HTTP request', error, {
+                    operation: 'http_request_error',
+                });
+                if (!res.headersSent) {
+                    res.status(500).json({
+                        error: {
+                            message: 'Internal server error',
+                            code: 'MCP_HTTP_ERROR',
+                        },
+                    });
+                }
+            }
+        });
+        // Health check endpoint
+        app.get('/health', (req, res) => {
+            res.json({
+                status: 'healthy',
+                service: 'mcp-bitnovo-pay',
+                transport: 'http',
+                timestamp: new Date().toISOString(),
+            });
+        });
+        // Root endpoint with server info
+        app.get('/', (req, res) => {
+            res.json({
+                name: 'MCP Bitnovo Pay Server',
+                version: '1.2.0',
+                transport: 'StreamableHTTP',
+                endpoints: {
+                    mcp: '/mcp',
+                    health: '/health',
+                },
+                documentation: 'https://github.com/bitnovo/mcp-bitnovo-pay',
+            });
+        });
+        // OAuth 2.0 Discovery endpoints (required by claude.ai)
+        // OAuth Authorization Server Metadata
+        app.get('/.well-known/oauth-authorization-server/mcp', (req, res) => {
+            res.json({
+                issuer: `https://${req.get('host')}`,
+                token_endpoint: `https://${req.get('host')}/oauth/token`,
+                authorization_endpoint: `https://${req.get('host')}/oauth/authorize`,
+                grant_types_supported: ['authorization_code', 'client_credentials'],
+                response_types_supported: ['code', 'token'],
+                token_endpoint_auth_methods_supported: ['none', 'client_secret_basic'],
+            });
+        });
+        // OAuth 2.0 Resource Server Metadata
+        app.get('/.well-known/oauth-protected-resource/mcp', (req, res) => {
+            res.json({
+                resource: `https://${req.get('host')}`,
+                authorization_servers: [`https://${req.get('host')}`],
+                bearer_methods_supported: ['header', 'query'],
+                scopes_supported: ['mcp:read', 'mcp:write'],
+            });
+        });
+        // Start HTTP server
+        await new Promise((resolve, reject) => {
+            const server = app.listen(port, '0.0.0.0', () => {
+                logger.info('HTTP server listening', {
+                    port,
+                    host: '0.0.0.0',
+                    operation: 'http_server_listening',
+                });
+                resolve();
+            });
+            server.on('error', (error) => {
+                logger.error('HTTP server error', error, {
+                    operation: 'http_server_error',
+                });
+                reject(error);
+            });
+        });
+    }
     async start() {
         try {
             logger.info('Starting MCP Bitnovo Pay Server', {
@@ -333,21 +438,50 @@ class MCPBitnovoServer {
             //     operation: 'availability_check'
             //   });
             // }
-            // Connect MCP server to stdio transport
-            const transport = new StdioServerTransport();
-            await this.server.connect(transport);
             const toolCount = this.config.webhookEnabled ? 8 : 5;
-            logger.info('MCP Bitnovo Pay Server started successfully', {
-                operation: 'server_started',
-                availableTools: toolCount,
-                serviceAvailable: 'unknown', // Disabled during debugging
-                webhooksEnabled: this.config.webhookEnabled,
-                optimizations: {
-                    qrCache: 'enabled',
-                    fastQrGeneration: 'enabled',
-                    dynamicCryptoLogos: 'enabled',
-                },
-            });
+            // Detect transport mode based on PORT environment variable
+            const port = process.env.PORT || process.env.MCP_PORT;
+            if (port) {
+                // HTTP mode for remote connections (claude.ai, Railway, etc.)
+                logger.info('Starting in HTTP mode for remote connections', {
+                    port,
+                    operation: 'http_mode_detected',
+                });
+                await this.startHttpMode(parseInt(port));
+                logger.info('MCP Bitnovo Pay Server started successfully (HTTP mode)', {
+                    operation: 'server_started',
+                    transport: 'http',
+                    port,
+                    availableTools: toolCount,
+                    serviceAvailable: 'unknown',
+                    webhooksEnabled: this.config.webhookEnabled,
+                    optimizations: {
+                        qrCache: 'enabled',
+                        fastQrGeneration: 'enabled',
+                        dynamicCryptoLogos: 'enabled',
+                    },
+                });
+            }
+            else {
+                // Stdio mode for local connections (Claude Desktop)
+                logger.info('Starting in stdio mode for local connections', {
+                    operation: 'stdio_mode_detected',
+                });
+                const transport = new StdioServerTransport();
+                await this.server.connect(transport);
+                logger.info('MCP Bitnovo Pay Server started successfully (stdio mode)', {
+                    operation: 'server_started',
+                    transport: 'stdio',
+                    availableTools: toolCount,
+                    serviceAvailable: 'unknown',
+                    webhooksEnabled: this.config.webhookEnabled,
+                    optimizations: {
+                        qrCache: 'enabled',
+                        fastQrGeneration: 'enabled',
+                        dynamicCryptoLogos: 'enabled',
+                    },
+                });
+            }
         }
         catch (error) {
             logger.error('Failed to start server', error, {

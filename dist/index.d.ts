@@ -14,6 +14,10 @@ declare class MCPBitnovoServer {
     private setupToolHandlers;
     private setupErrorHandlers;
     private shutdown;
+    /**
+     * Start MCP server in HTTP mode for remote connections (claude.ai, Railway, etc.)
+     */
+    private startHttpMode;
     start(): Promise<void>;
     getServer(): Server;
 }

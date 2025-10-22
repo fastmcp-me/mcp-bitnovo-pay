@@ -1,6 +1,6 @@
 {
   "name": "@bitnovopay/mcp-bitnovo-pay",
-  "version": "1.1.1",
+  "version": "1.2.0",
   "description": "MCP server for Bitnovo Pay integration with AI agents",
   "type": "module",
   "main": "dist/index.js",
@@ -63,7 +63,7 @@
     "access": "public"
   },
   "dependencies": {
-    "@modelcontextprotocol/sdk": "^1.0.0",
+    "@modelcontextprotocol/sdk": "^1.20.0",
     "@ngrok/ngrok": "^1.5.2",
     "@openziti/zrok": "^1.1.5",
     "axios": "^1.6.0",
