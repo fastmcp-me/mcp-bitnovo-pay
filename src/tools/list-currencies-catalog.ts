@@ -229,9 +229,10 @@ export class ListCurrenciesCatalogHandler {
           groups[baseSymbol] = [];
         }
         // Store display name instead of code: "USDC on Ethereum Network"
-        groups[baseSymbol]?.push(
-          `${currency.original_symbol} on ${currency.original_blockchain}`
-        );
+        // Handle undefined values gracefully
+        const symbol = currency.original_symbol || baseSymbol;
+        const blockchain = currency.original_blockchain || 'Unknown Network';
+        groups[baseSymbol]?.push(`${symbol} on ${blockchain}`);
       }
     }
 
