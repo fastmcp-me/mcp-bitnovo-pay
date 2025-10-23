@@ -103,17 +103,25 @@ export class CreatePaymentOnchainHandler {
       let matchedCurrency = null;
 
       for (const currency of allCurrencies.currencies) {
-        const originalSymbol = currency.original_symbol as string;
-        const originalBlockchain = currency.original_blockchain as string;
-        const displayName = `${originalSymbol} on ${originalBlockchain}`;
+        const originalSymbol = (currency.original_symbol as string) || '';
+        const originalBlockchain = (currency.original_blockchain as string) || '';
+        const displayName = originalSymbol && originalBlockchain
+          ? `${originalSymbol} on ${originalBlockchain}`
+          : '';
         const displayNameShort = originalSymbol;
 
+        // Skip currencies without proper symbol/blockchain info
+        if (!originalSymbol) {
+          continue;
+        }
+
         // Match either "USDC on Ethereum Network" or just "USDC" (if unique)
+        // Safe toLowerCase with null checks
         if (
           cryptoString === displayName ||
           cryptoString === displayNameShort ||
-          cryptoString.toLowerCase() === displayName.toLowerCase() ||
-          cryptoString.toLowerCase() === displayNameShort.toLowerCase()
+          (cryptoString && displayName && cryptoString.toLowerCase() === displayName.toLowerCase()) ||
+          (cryptoString && displayNameShort && cryptoString.toLowerCase() === displayNameShort.toLowerCase())
         ) {
           matchedCurrency = currency;
           break;
