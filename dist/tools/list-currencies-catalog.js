@@ -161,6 +161,8 @@ export class ListCurrenciesCatalogHandler {
      * Check if currency is a stablecoin
      */
     isStablecoin(symbol) {
+        if (!symbol)
+            return false;
         const stablecoins = ['USDC'];
         return stablecoins.includes(symbol.toUpperCase());
     }
@@ -168,6 +170,8 @@ export class ListCurrenciesCatalogHandler {
      * Check if currency is in the popular list
      */
     isPopularCurrency(symbol) {
+        if (!symbol)
+            return false;
         const popularCurrencies = ['BTC', 'ETH', 'LTC', 'BCH', 'XRP'];
         return popularCurrencies.includes(symbol.toUpperCase());
     }
