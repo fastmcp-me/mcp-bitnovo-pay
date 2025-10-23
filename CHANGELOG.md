@@ -5,6 +5,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.2.1] - 2025-10-23
+
+### Fixed
+- **list_currencies_catalog**: Added null safety checks to prevent crashes
+  - Fixed `isStablecoin()` and `isPopularCurrency()` methods to handle undefined symbol values
+  - Fixed `groupCurrenciesByNetwork()` to handle undefined original_symbol and original_blockchain
+  - Network groups now show proper fallback values instead of "undefined on undefined"
+- **create_payment_onchain**: Added null safety in currency matching logic
+  - Fixed toLowerCase() calls on potentially undefined values
+  - Improved currency matching with proper null checks
+  - Skip currencies without proper symbol information
+
 ## [1.2.0] - 2025-10-22
 
 ### Added
